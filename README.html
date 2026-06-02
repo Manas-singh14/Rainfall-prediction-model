@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UP Rainfall Forecast — README</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Noto+Serif+Devanagari:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --sky-deep:    #03071e;
+    --sky-mid:     #0a1628;
+    --cloud:       #b8d4f0;
+    --rain-blue:   #4cc9f0;
+    --rain-dark:   #0077b6;
+    --monsoon:     #48cae4;
+    --accent:      #f72585;
+    --gold:        #ffd60a;
+    --text:        #e8f4f8;
+    --muted:       #7fb3cc;
+    --surface:     rgba(10,22,40,0.75);
+    --border:      rgba(76,201,240,0.18);
+    --card-glow:   0 0 40px rgba(76,201,240,0.12);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--sky-deep);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    overflow-x: hidden;
+    line-height: 1.7;
+  }
+
+  /* ══════════════════════════════════════
+     RAIN CANVAS
+  ══════════════════════════════════════ */
+  #rain-canvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.35;
+  }
+
+  /* ══════════════════════════════════════
+     LIGHTNING
+  ══════════════════════════════════════ */
+  .lightning {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(180,220,255,0.06);
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0;
+    animation: lightning-flash 8s infinite;
+  }
+  @keyframes lightning-flash {
+    0%,96%,100% { opacity: 0; }
+    97%         { opacity: 1; }
+    98%         { opacity: 0; }
+    99%         { opacity: 0.6; }
+  }
+
+  /* ══════════════════════════════════════
+     LAYOUT WRAPPER
+  ══════════════════════════════════════ */
+  .page {
+    position: relative;
+    z-index: 2;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 28px 120px;
+  }
+
+  /* ══════════════════════════════════════
+     HERO
+  ══════════════════════════════════════ */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 60px;
+    position: relative;
+  }
+
+  .hero-eyebrow {
+    font-size: 0.72rem;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--rain-blue);
+    margin-bottom: 20px;
+    opacity: 0;
+    animation: fade-up 0.8s 0.3s forwards;
+  }
+
+  .hero-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2.8rem, 7vw, 6rem);
+    font-weight: 900;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
+    opacity: 0;
+    animation: fade-up 0.9s 0.5s forwards;
+  }
+
+  .hero-title .accent { color: var(--rain-blue); }
+  .hero-title .hindi  {
+    font-family: 'Noto Serif Devanagari', serif;
+    font-size: 0.52em;
+    font-weight: 700;
+    color: var(--muted);
+    display: block;
+    margin-top: 6px;
+    letter-spacing: 0.01em;
+  }
+
+  .hero-sub {
+    font-size: 0.95rem;
+    color: var(--muted);
+    max-width: 540px;
+    margin-top: 24px;
+    margin-bottom: 44px;
+    opacity: 0;
+    animation: fade-up 0.9s 0.8s forwards;
+  }
+
+  .badge-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    opacity: 0;
+    animation: fade-up 0.9s 1s forwards;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 14px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    color: var(--rain-blue);
+    background: rgba(76,201,240,0.06);
+    white-space: nowrap;
+  }
+
+  .badge .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--rain-blue);
+    animation: pulse-dot 2s infinite;
+  }
+  @keyframes pulse-dot {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.4; transform: scale(0.7); }
+  }
+
+  .scroll-hint {
+    position: absolute;
+    bottom: 40px;
+    left: 0;
+    font-size: 0.68rem;
+    color: var(--muted);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    opacity: 0;
+    animation: fade-up 1s 1.8s forwards, bob 2s 2.8s infinite;
+  }
+  @keyframes bob {
+    0%,100% { transform: translateY(0); }
+    50%      { transform: translateY(6px); }
+  }
+
+  /* ══════════════════════════════════════
+     DIVIDER
+  ══════════════════════════════════════ */
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 70px 0 50px;
+  }
+  .divider span {
+    font-size: 0.68rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ══════════════════════════════════════
+     SECTION LABEL
+  ══════════════════════════════════════ */
+  .section-label {
+    font-size: 0.65rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--rain-blue);
+    margin-bottom: 14px;
+  }
+
+  /* ══════════════════════════════════════
+     OVERVIEW BLOCK
+  ══════════════════════════════════════ */
+  .overview {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--rain-blue);
+    border-radius: 8px;
+    padding: 32px 36px;
+    box-shadow: var(--card-glow);
+    margin-bottom: 48px;
+    backdrop-filter: blur(12px);
+  }
+
+  .overview p {
+    color: var(--muted);
+    font-size: 0.88rem;
+    max-width: 620px;
+    margin-top: 10px;
+  }
+
+  .overview h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.55rem;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  /* ══════════════════════════════════════
+     STAT GRID
+  ══════════════════════════════════════ */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 56px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px 20px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.25s, transform 0.2s;
+    backdrop-filter: blur(10px);
+  }
+  .stat-card:hover {
+    border-color: rgba(76,201,240,0.45);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 30px rgba(76,201,240,0.15);
+  }
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--rain-blue), transparent);
+  }
+
+  .stat-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.1rem;
+    font-weight: 900;
+    color: var(--rain-blue);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .stat-label {
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  /* ══════════════════════════════════════
+     RAIN INTENSITY METER
+  ══════════════════════════════════════ */
+  .intensity-section { margin-bottom: 56px; }
+
+  .intensity-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 20px;
+  }
+
+  .intensity-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 14px;
+    animation: fade-left 0.6s both;
+  }
+  .intensity-row:nth-child(2) { animation-delay: 0.05s; }
+  .intensity-row:nth-child(3) { animation-delay: 0.1s; }
+  .intensity-row:nth-child(4) { animation-delay: 0.15s; }
+  .intensity-row:nth-child(5) { animation-delay: 0.2s; }
+
+  @keyframes fade-left {
+    from { opacity: 0; transform: translateX(-16px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  .intensity-name {
+    width: 120px;
+    font-size: 0.75rem;
+    color: var(--muted);
+    text-align: right;
+    flex-shrink: 0;
+  }
+
+  .bar-track {
+    flex: 1;
+    height: 10px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 5px;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 5px;
+    width: 0;
+    transition: width 1.4s cubic-bezier(0.22,1,0.36,1);
+  }
+
+  .bar-fill.drizzle  { background: linear-gradient(90deg, #48cae4, #90e0ef); }
+  .bar-fill.moderate { background: linear-gradient(90deg, #0096c7, #48cae4); }
+  .bar-fill.heavy    { background: linear-gradient(90deg, #0077b6, #0096c7); }
+  .bar-fill.vheavy   { background: linear-gradient(90deg, #023e8a, #0077b6); }
+  .bar-fill.extreme  { background: linear-gradient(90deg, var(--accent), #ff6b9d); }
+
+  .bar-val {
+    font-size: 0.72rem;
+    color: var(--muted);
+    width: 80px;
+    flex-shrink: 0;
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* ══════════════════════════════════════
+     PIPELINE CARDS
+  ══════════════════════════════════════ */
+  .pipeline-section { margin-bottom: 56px; }
+
+  .pipeline-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 22px;
+  }
+
+  .pipeline-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 14px;
+  }
+
+  .pipeline-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 18px;
+    backdrop-filter: blur(10px);
+    position: relative;
+    transition: transform 0.2s;
+  }
+  .pipeline-card:hover { transform: translateY(-4px); }
+
+  .pipeline-card .step-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 2.4rem;
+    font-weight: 900;
+    color: rgba(76,201,240,0.15);
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .pipeline-card h4 {
+    font-size: 0.82rem;
+    color: var(--rain-blue);
+    margin-bottom: 6px;
+    letter-spacing: 0.04em;
+  }
+
+  .pipeline-card p {
+    font-size: 0.75rem;
+    color: var(--muted);
+    line-height: 1.55;
+  }
+
+  /* ══════════════════════════════════════
+     CODE BLOCK
+  ══════════════════════════════════════ */
+  .code-section { margin-bottom: 56px; }
+
+  .code-section h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 18px;
+  }
+
+  .code-wrap {
+    background: #020c18;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+
+  .code-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(0,0,0,0.25);
+  }
+
+  .code-dots span {
+    display: inline-block;
+    width: 10px; height: 10px;
+    border-radius: 50%;
+  }
+  .code-dots span:nth-child(1) { background: #ff5f56; }
+  .code-dots span:nth-child(2) { background: #ffbd2e; }
+  .code-dots span:nth-child(3) { background: #27c93f; }
+
+  .code-filename {
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-left: 6px;
+    letter-spacing: 0.06em;
+  }
+
+  pre {
+    padding: 22px 24px;
+    overflow-x: auto;
+    font-size: 0.8rem;
+    line-height: 1.65;
+    color: #b0d4e8;
+  }
+
+  .kw   { color: #c792ea; }
+  .fn   { color: #82aaff; }
+  .str  { color: #c3e88d; }
+  .cm   { color: #546e7a; font-style: italic; }
+  .num  { color: var(--gold); }
+  .op   { color: var(--rain-blue); }
+
+  /* ══════════════════════════════════════
+     FEATURE TABLE
+  ══════════════════════════════════════ */
+  .features-section { margin-bottom: 56px; }
+
+  .features-section h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 18px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+  }
+
+  thead th {
+    text-align: left;
+    padding: 10px 14px;
+    color: var(--rain-blue);
+    border-bottom: 1px solid var(--border);
+    font-size: 0.68rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  tbody tr {
+    border-bottom: 1px solid rgba(76,201,240,0.06);
+    transition: background 0.15s;
+  }
+  tbody tr:hover { background: rgba(76,201,240,0.04); }
+
+  tbody td {
+    padding: 10px 14px;
+    color: var(--muted);
+    vertical-align: top;
+  }
+
+  tbody td:first-child { color: var(--text); font-family: 'Space Mono', monospace; }
+
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 0.65rem;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+  }
+  .tag.era5   { background: rgba(72,202,228,0.15); color: #48cae4; }
+  .tag.nasa   { background: rgba(247,37,133,0.12); color: #f72585; }
+  .tag.deriv  { background: rgba(255,214,10,0.12); color: var(--gold); }
+
+  /* ══════════════════════════════════════
+     CLI SECTION
+  ══════════════════════════════════════ */
+  .cli-section { margin-bottom: 56px; }
+  .cli-section h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.4rem;
+    font-weight: 700;
+    margin-bottom: 18px;
+  }
+
+  .cli-grid { display: grid; gap: 10px; }
+
+  .cli-cmd {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    background: #020c18;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .cli-cmd:hover { border-color: rgba(76,201,240,0.4); }
+
+  .cli-prompt {
+    background: rgba(76,201,240,0.08);
+    color: var(--rain-blue);
+    padding: 13px 14px;
+    font-size: 0.8rem;
+    border-right: 1px solid var(--border);
+    user-select: none;
+    flex-shrink: 0;
+  }
+
+  .cli-text {
+    padding: 13px 16px;
+    font-size: 0.78rem;
+    color: #c3e88d;
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  .cli-desc {
+    margin-top: 4px;
+    margin-bottom: 6px;
+    font-size: 0.72rem;
+    color: var(--muted);
+    padding-left: 4px;
+  }
+
+  /* ══════════════════════════════════════
+     RAIN INTENSITY VISUAL
+  ══════════════════════════════════════ */
+  .monsoon-visual {
+    width: 100%;
+    height: 120px;
+    position: relative;
+    overflow: hidden;
+    border-radius: 10px;
+    margin-bottom: 56px;
+    background: linear-gradient(180deg, #0a1628 0%, #03071e 100%);
+    border: 1px solid var(--border);
+  }
+
+  /* ══════════════════════════════════════
+     FOOTER
+  ══════════════════════════════════════ */
+  .footer {
+    border-top: 1px solid var(--border);
+    padding-top: 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: gap;
+    gap: 16px;
+  }
+
+  .footer-left {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.05rem;
+    font-weight: 700;
+  }
+
+  .footer-right {
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-align: right;
+    line-height: 1.7;
+  }
+
+  /* ══════════════════════════════════════
+     ANIMATIONS
+  ══════════════════════════════════════ */
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ══════════════════════════════════════
+     SCROLLREVEAL INIT STATE
+  ══════════════════════════════════════ */
+  .reveal {
+    opacity: 0;
+    transform: translateY(22px);
+    transition: opacity 0.7s ease, transform 0.7s ease;
+  }
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ══════════════════════════════════════
+     CLOUD LAYER
+  ══════════════════════════════════════ */
+  .clouds {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 220px;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+  }
+
+  .cloud {
+    position: absolute;
+    border-radius: 50px;
+    background: rgba(20,50,90,0.55);
+    filter: blur(22px);
+  }
+  .cloud-1 { width: 400px; height: 80px; top: 20px; left: -100px; animation: drift 28s linear infinite; }
+  .cloud-2 { width: 600px; height: 100px; top: 50px; left: 30%; animation: drift 38s 8s linear infinite; opacity: 0.7; }
+  .cloud-3 { width: 300px; height: 60px; top: 10px; right: -80px; animation: drift-r 32s linear infinite; }
+
+  @keyframes drift   { from { transform: translateX(-120px); } to { transform: translateX(calc(100vw + 200px)); } }
+  @keyframes drift-r { from { transform: translateX(120px); } to { transform: translateX(calc(-100vw - 200px)); } }
+
+  /* ══════════════════════════════════════
+     HORIZON CHART
+  ══════════════════════════════════════ */
+  .horizon-chart {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+    margin-bottom: 56px;
+  }
+
+  .horizon-day {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 8px;
+    transition: border-color 0.2s, transform 0.2s;
+    cursor: default;
+    backdrop-filter: blur(8px);
+  }
+  .horizon-day:hover {
+    border-color: rgba(76,201,240,0.4);
+    transform: translateY(-4px);
+  }
+
+  .hd-label {
+    font-size: 0.6rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .hd-drop {
+    font-size: 1.5rem;
+    animation: drop-fall 2s infinite;
+    animation-delay: calc(var(--i) * 0.2s);
+  }
+  @keyframes drop-fall {
+    0%,100% { transform: translateY(0); opacity: 0.9; }
+    50%      { transform: translateY(4px); opacity: 1; }
+  }
+
+  .hd-day {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.4rem;
+    font-weight: 900;
+    color: var(--rain-blue);
+    line-height: 1;
+  }
+
+  .hd-ahead {
+    font-size: 0.58rem;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+
+<!-- ATMOSPHERE -->
+<canvas id="rain-canvas"></canvas>
+<div class="lightning"></div>
+<div class="clouds">
+  <div class="cloud cloud-1"></div>
+  <div class="cloud cloud-2"></div>
+  <div class="cloud cloud-3"></div>
+</div>
+
+<!-- MAIN PAGE -->
+<div class="page">
+
+  <!-- ── HERO ── -->
+  <section class="hero">
+    <div class="hero-eyebrow">Uttar Pradesh · Climate Intelligence · XGBoost + ERA5 + NASA POWER</div>
+    <h1 class="hero-title">
+      <span class="accent">Rainfall</span><br>Forecast
+      <span class="hindi">उत्तर प्रदेश वर्षा पूर्वानुमान</span>
+    </h1>
+    <p class="hero-sub">
+      A machine-learning pipeline that predicts 7-day district-wise rainfall across all 75 districts of Uttar Pradesh — powered by ERA5 reanalysis and NASA POWER data, dual XGBoost regression and classification, and live Open-Meteo integration.
+    </p>
+    <div class="badge-row">
+      <div class="badge"><span class="dot"></span>75 Districts</div>
+      <div class="badge"><span class="dot"></span>7-Day Horizon</div>
+      <div class="badge"><span class="dot"></span>XGBoost Dual-Model</div>
+      <div class="badge"><span class="dot"></span>ERA5 · NASA POWER</div>
+      <div class="badge"><span class="dot"></span>Open-Meteo Live</div>
+    </div>
+    <div class="scroll-hint">↓ &nbsp; scroll to explore</div>
+  </section>
+
+  <!-- ── OVERVIEW ── -->
+  <div class="divider"><span>Overview</span></div>
+
+  <div class="overview reveal">
+    <div class="section-label">About the Project</div>
+    <h2>District-wise monsoon intelligence for all of UP</h2>
+    <p>
+      Historical daily weather records for every Uttar Pradesh district were collected from ERA5 (ECMWF) and NASA POWER APIs. A supervised multi-horizon dataset was constructed, then dual XGBoost models — one regressor for millimetre amounts, one classifier for rain/no-rain probability — were trained and evaluated per forecast day. The same pipeline can ingest live Open-Meteo data to produce real-time 7-day outlooks.
+    </p>
+  </div>
+
+  <!-- ── STATS ── -->
+  <div class="stat-grid reveal">
+    <div class="stat-card">
+      <div class="stat-num">75</div>
+      <div class="stat-label">UP Districts</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">7</div>
+      <div class="stat-label">Day Forecast Horizon</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">2</div>
+      <div class="stat-label">Model Types (Reg + Clf)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">9</div>
+      <div class="stat-label">Raw ERA5 Variables</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">30+</div>
+      <div class="stat-label">Engineered Features</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">0.1</div>
+      <div class="stat-label">Rain Threshold (mm)</div>
+    </div>
+  </div>
+
+  <!-- ── 7-DAY HORIZON VIZ ── -->
+  <div class="divider reveal"><span>Forecast Window</span></div>
+
+  <div class="section-label reveal">Day-ahead prediction targets</div>
+  <div class="horizon-chart reveal">
+    <div class="horizon-day" style="--i:0"><div class="hd-label">Day</div><div class="hd-drop">🌧️</div><div class="hd-day">+1</div><div class="hd-ahead">tomorrow</div></div>
+    <div class="horizon-day" style="--i:1"><div class="hd-label">Day</div><div class="hd-drop">🌦️</div><div class="hd-day">+2</div><div class="hd-ahead">day after</div></div>
+    <div class="horizon-day" style="--i:2"><div class="hd-label">Day</div><div class="hd-drop">🌧️</div><div class="hd-day">+3</div><div class="hd-ahead">3rd day</div></div>
+    <div class="horizon-day" style="--i:3"><div class="hd-label">Day</div><div class="hd-drop">⛅</div><div class="hd-day">+4</div><div class="hd-ahead">4th day</div></div>
+    <div class="horizon-day" style="--i:4"><div class="hd-label">Day</div><div class="hd-drop">🌦️</div><div class="hd-day">+5</div><div class="hd-ahead">5th day</div></div>
+    <div class="horizon-day" style="--i:5"><div class="hd-label">Day</div><div class="hd-drop">🌧️</div><div class="hd-day">+6</div><div class="hd-ahead">6th day</div></div>
+    <div class="horizon-day" style="--i:6"><div class="hd-label">Day</div><div class="hd-drop">⛈️</div><div class="hd-day">+7</div><div class="hd-ahead">7th day</div></div>
+  </div>
+
+  <!-- ── RAIN INTENSITY ── -->
+  <div class="divider reveal"><span>Intensity Classification</span></div>
+
+  <div class="intensity-section reveal">
+    <div class="section-label">IMD thresholds encoded in the model</div>
+    <h3 class="intensity-title">Rainfall Categories</h3>
+
+    <div class="intensity-row">
+      <div class="intensity-name">Trace / Drizzle</div>
+      <div class="bar-track"><div class="bar-fill drizzle" data-w="18"></div></div>
+      <div class="bar-val">&gt; 0.1 mm</div>
+    </div>
+    <div class="intensity-row">
+      <div class="intensity-name">Moderate</div>
+      <div class="bar-track"><div class="bar-fill moderate" data-w="38"></div></div>
+      <div class="bar-val">&lt; 64.5 mm</div>
+    </div>
+    <div class="intensity-row">
+      <div class="intensity-name">Heavy</div>
+      <div class="bar-track"><div class="bar-fill heavy" data-w="58"></div></div>
+      <div class="bar-val">≥ 64.5 mm</div>
+    </div>
+    <div class="intensity-row">
+      <div class="intensity-name">Very Heavy</div>
+      <div class="bar-track"><div class="bar-fill vheavy" data-w="78"></div></div>
+      <div class="bar-val">≥ 115.6 mm</div>
+    </div>
+    <div class="intensity-row">
+      <div class="intensity-name">Extreme</div>
+      <div class="bar-track"><div class="bar-fill extreme" data-w="96"></div></div>
+      <div class="bar-val">≥ 204.5 mm</div>
+    </div>
+  </div>
+
+  <!-- ── PIPELINE ── -->
+  <div class="divider reveal"><span>Pipeline</span></div>
+
+  <div class="pipeline-section reveal">
+    <div class="section-label">End-to-end ML workflow</div>
+    <h3 class="pipeline-title">How It Works</h3>
+    <div class="pipeline-grid">
+      <div class="pipeline-card">
+        <div class="step-num">01</div>
+        <h4>Data Ingestion</h4>
+        <p>ERA5 reanalysis + NASA POWER daily records per district. Kelvin → Celsius conversion, 99th-percentile rain capping.</p>
+      </div>
+      <div class="pipeline-card">
+        <div class="step-num">02</div>
+        <h4>Feature Engineering</h4>
+        <p>Lag-1/2/3/7/14 rainfall, rolling 3/7/14/30-day stats, dewpoint depression, moisture flux, cyclic month/DOY encoding.</p>
+      </div>
+      <div class="pipeline-card">
+        <div class="step-num">03</div>
+        <h4>Supervised Construction</h4>
+        <p>Multi-horizon pivot: each (district, date) row is replicated 7×, one per target day. Target-date weather features are shifted accordingly.</p>
+      </div>
+      <div class="pipeline-card">
+        <div class="step-num">04</div>
+        <h4>Dual XGBoost Training</h4>
+        <p>Regressor predicts log1p(mm); Classifier predicts rain probability. Evaluated per horizon day on a chronological train/test split.</p>
+      </div>
+      <div class="pipeline-card">
+        <div class="step-num">05</div>
+        <h4>Live Forecast</h4>
+        <p>Geocodes any UP place name, fetches Open-Meteo hourly, builds feature rows, runs inference, and saves a dual-axis prediction chart.</p>
+      </div>
+      <div class="pipeline-card">
+        <div class="step-num">06</div>
+        <h4>EDA & Risk Scoring</h4>
+        <p>District, monthly, yearly risk scores (0–100) via percentile composites. Heatmaps, scatter plots, and tabular CSVs saved to output directory.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── FEATURE TABLE ── -->
+  <div class="divider reveal"><span>Features</span></div>
+
+  <div class="features-section reveal">
+    <div class="section-label">Input variables used by the models</div>
+    <h3>Feature Space</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Variable</th>
+          <th>Source</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>sp</td><td><span class="tag era5">ERA5</span></td><td>Surface pressure (Pa)</td></tr>
+        <tr><td>t2m / d2m</td><td><span class="tag era5">ERA5</span></td><td>2-m temp & dew point (°C)</td></tr>
+        <tr><td>u10 / v10</td><td><span class="tag era5">ERA5</span></td><td>10-m U & V wind components (m/s)</td></tr>
+        <tr><td>tcc / lcc</td><td><span class="tag era5">ERA5</span></td><td>Total & low cloud cover (0–1)</td></tr>
+        <tr><td>viwve / viwvn</td><td><span class="tag era5">ERA5</span></td><td>Integrated water vapour flux (kg/m·s)</td></tr>
+        <tr><td>rainfall_mm</td><td><span class="tag nasa">NASA</span></td><td>Daily precipitation target (mm)</td></tr>
+        <tr><td>dewpoint_depression</td><td><span class="tag deriv">Derived</span></td><td>t2m − d2m (°C)</td></tr>
+        <tr><td>wind_speed</td><td><span class="tag deriv">Derived</span></td><td>√(u10² + v10²)</td></tr>
+        <tr><td>moisture_flux</td><td><span class="tag deriv">Derived</span></td><td>√(viwve² + viwvn²)</td></tr>
+        <tr><td>rain_lag_1…14</td><td><span class="tag deriv">Derived</span></td><td>Lagged rainfall at 1,2,3,7,14 days</td></tr>
+        <tr><td>rain_roll3…30</td><td><span class="tag deriv">Derived</span></td><td>Rolling mean & sum over 3,7,14,30 days</td></tr>
+        <tr><td>month_sin/cos</td><td><span class="tag deriv">Derived</span></td><td>Cyclic month encoding</td></tr>
+        <tr><td>is_monsoon</td><td><span class="tag deriv">Derived</span></td><td>1 if June–September, else 0</td></tr>
+        <tr><td>horizon</td><td><span class="tag deriv">Derived</span></td><td>Days ahead (1–7)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ── CLI COMMANDS ── -->
+  <div class="divider reveal"><span>Usage</span></div>
+
+  <div class="cli-section reveal">
+    <div class="section-label">Command-line interface</div>
+    <h3>Quick Start</h3>
+    <div class="cli-grid">
+
+      <p class="cli-desc"># Train the model on your CSV</p>
+      <div class="cli-cmd">
+        <div class="cli-prompt">$</div>
+        <div class="cli-text">python rainfall_7day_forecast.py train \
+  --data up_daily_weather_dataset.csv \
+  --output-dir models_7day \
+  --train-end-year 2022</div>
+      </div>
+
+      <p class="cli-desc"># Predict from CSV data for a specific district</p>
+      <div class="cli-cmd">
+        <div class="cli-prompt">$</div>
+        <div class="cli-text">python rainfall_7day_forecast.py predict \
+  --district Lucknow \
+  --as-of-date 2023-06-15 \
+  --plot-path lucknow_forecast.png</div>
+      </div>
+
+      <p class="cli-desc"># Live forecast via Open-Meteo (no CSV needed)</p>
+      <div class="cli-cmd">
+        <div class="cli-prompt">$</div>
+        <div class="cli-text">python rainfall_7day_forecast.py live-predict \
+  --place Varanasi \
+  --rain-probability-threshold 0.4</div>
+      </div>
+
+      <p class="cli-desc"># Exploratory Data Analysis + risk tables</p>
+      <div class="cli-cmd">
+        <div class="cli-prompt">$</div>
+        <div class="cli-text">python rainfall_7day_forecast.py eda \
+  --data up_daily_weather_dataset.csv \
+  --output-dir eda_outputs</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── CODE SNIPPET ── -->
+  <div class="divider reveal"><span>Code</span></div>
+
+  <div class="code-section reveal">
+    <div class="section-label">Core model configuration</div>
+    <h3>XGBoost Configuration</h3>
+    <div class="code-wrap">
+      <div class="code-header">
+        <div class="code-dots"><span></span><span></span><span></span></div>
+        <div class="code-filename">rainfall_7day_forecast.py — make_models()</div>
+      </div>
+<pre><span class="kw">def</span> <span class="fn">make_models</span>(random_state: <span class="fn">int</span>) <span class="op">-></span> tuple[XGBRegressor, XGBClassifier]:
+    regressor <span class="op">=</span> XGBRegressor(
+        objective    <span class="op">=</span> <span class="str">"reg:squarederror"</span>,
+        n_estimators <span class="op">=</span> <span class="num">450</span>,
+        max_depth    <span class="op">=</span> <span class="num">7</span>,
+        learning_rate<span class="op">=</span> <span class="num">0.04</span>,
+        subsample    <span class="op">=</span> <span class="num">0.8</span>,
+        reg_lambda   <span class="op">=</span> <span class="num">2.0</span>,
+    )
+    classifier <span class="op">=</span> XGBClassifier(
+        n_estimators <span class="op">=</span> <span class="num">350</span>,
+        max_depth    <span class="op">=</span> <span class="num">6</span>,
+        learning_rate<span class="op">=</span> <span class="num">0.05</span>,
+        eval_metric  <span class="op">=</span> [<span class="str">"logloss"</span>, <span class="str">"error"</span>],
+    )
+    <span class="kw">return</span> regressor, classifier
+
+<span class="cm"># Targets</span>
+<span class="cm"># regressor  → log1p(rainfall_mm)   [expm1 on output]</span>
+<span class="cm"># classifier → P(rainfall > 0.1 mm) [threshold = 0.5]</span></pre>
+    </div>
+  </div>
+
+  <!-- ── OUTPUTS ── -->
+  <div class="divider reveal"><span>Outputs</span></div>
+
+  <div class="pipeline-section reveal">
+    <div class="section-label">Artifacts saved to --output-dir</div>
+    <h3 class="pipeline-title">Model Artifacts & Reports</h3>
+    <div class="pipeline-grid">
+      <div class="pipeline-card">
+        <div class="step-num">📦</div>
+        <h4>rainfall_7day_regressor.pkl</h4>
+        <p>Trained XGBoost rainfall-amount regressor (joblib).</p>
+      </div>
+      <div class="pipeline-card">
+        <div class="step-num">📦</div>
+        <h4>rainfall_7day_classifier.pkl</h4>
+        <p>Trained XGBoost rain/no-rain probability classifier.</p>
+      </div>
+      <div class="pipeline-card">
+        <div class="step-num">📊</div>
+        <h4>regression_train_test_metrics.png</h4>
+        <p>MAE, RMSE, R² per forecast day for train and test splits.</p>
+      </div>
+      <div class="pipeline-card">
+        <div class="step-num">📊</div>
+        <h4>actual_vs_predicted_test.png</h4>
+        <p>Scatter plot of actual vs predicted rainfall, coloured by horizon day.</p>
+      </div>
+      <div class="pipeline-card">
+        <div class="step-num">📋</div>
+        <h4>EDA CSVs</h4>
+        <p>district_risk.csv · monthly_risk.csv · yearly_risk.csv · district_month_matrix.csv</p>
+      </div>
+      <div class="pipeline-card">
+        <div class="step-num">🖼️</div>
+        <h4>live_7day_prediction_*.png</h4>
+        <p>Dual-axis bar + line chart of predicted mm and rain probability for any UP place.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── FOOTER ── -->
+  <div class="divider reveal"><span>Built with</span></div>
+
+  <footer class="footer reveal">
+    <div class="footer-left">☁️ UP Rainfall Forecast</div>
+    <div class="footer-right">
+      Python · XGBoost · pandas · scikit-learn · NumPy<br>
+      ERA5 (ECMWF) · NASA POWER · Open-Meteo API<br>
+      Uttar Pradesh — All 75 Districts
+    </div>
+  </footer>
+
+</div><!-- /page -->
+
+<!-- ══════════════════════════════════════
+     RAIN ANIMATION SCRIPT
+══════════════════════════════════════ -->
+<script>
+(function(){
+  const canvas = document.getElementById('rain-canvas');
+  const ctx    = canvas.getContext('2d');
+  let W, H, drops = [];
+
+  function resize(){
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const COUNT = 220;
+
+  function make(){
+    return {
+      x:     Math.random() * W,
+      y:     Math.random() * H,
+      len:   Math.random() * 18 + 8,
+      speed: Math.random() * 5 + 5,
+      alpha: Math.random() * 0.5 + 0.1,
+      w:     Math.random() * 1 + 0.4,
+    };
+  }
+
+  for(let i=0;i<COUNT;i++) drops.push(make());
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    for(const d of drops){
+      ctx.beginPath();
+      ctx.strokeStyle = `rgba(76,201,240,${d.alpha})`;
+      ctx.lineWidth   = d.w;
+      ctx.moveTo(d.x, d.y);
+      ctx.lineTo(d.x - 1, d.y + d.len);
+      ctx.stroke();
+
+      d.y += d.speed;
+      d.x -= 0.5;
+      if(d.y > H + d.len){
+        Object.assign(d, make());
+        d.y = -d.len;
+        d.x = Math.random() * W;
+      }
+    }
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+// ── SCROLL REVEAL ──
+const reveals = document.querySelectorAll('.reveal');
+const io = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if(e.isIntersecting){ e.target.classList.add('visible'); io.unobserve(e.target); }
+  });
+}, { threshold: 0.12 });
+reveals.forEach(el => io.observe(el));
+
+// ── BAR ANIMATION ──
+const barIO = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if(e.isIntersecting){
+      e.target.querySelectorAll('.bar-fill').forEach(bar => {
+        bar.style.width = bar.dataset.w + '%';
+      });
+      barIO.unobserve(e.target);
+    }
+  });
+}, { threshold: 0.3 });
+document.querySelectorAll('.intensity-section').forEach(el => barIO.observe(el));
+</script>
+
+</body>
+</html>
