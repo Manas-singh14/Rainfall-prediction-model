@@ -5,6 +5,9 @@ A machine-learning pipeline that predicts 7-day district-wise rainfall across al
 
 ## Model Performance
 **Model Accuracy: 90%**
+## Results
+<img width="1055" height="603" alt="image" src="https://github.com/user-attachments/assets/71060c90-e916-4cb4-a5bf-4aff555cf5b5" />
+<img width="993" height="630" alt="image" src="https://github.com/user-attachments/assets/ed4461b9-55b5-491e-81a0-8f3f4cda65a1" />
 
 ## Key Highlights
 - 75 Uttar Pradesh districts
